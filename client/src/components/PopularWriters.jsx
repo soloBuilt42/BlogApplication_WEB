@@ -1,8 +1,6 @@
-import React from "react";
 import { Link } from "react-router-dom";
-import fallbackImage from "../assets/hero.png";
-
-const formatNumber = (value = 0) => new Intl.NumberFormat("en").format(value);
+import { formatNumber } from "../utils";
+import fallbackImage from "../assets/profile.png";
 
 const PopularWriters = ({ data }) => {
   return (
@@ -10,31 +8,36 @@ const PopularWriters = ({ data }) => {
       <p className='text-xl font-bold -mb-3 text-gray-600 dark:text-slate-500'>
         Popular Writers
       </p>
-      {data?.map((el, id) => (
-        <Link
-          to={`/writer/${el?._id}`}
-          key={el?._id + id}
-          className='flex gap-2 items-center'
-        >
-          <img
-            src={el?.image}
-            alt={el?.name}
-            className='w-12 h-12 rounded-full object-cover shrink-0'
-            onError={(event) => {
-              event.currentTarget.src = fallbackImage;
-            }}
-          />
-          <div className='flex flex-col gap-1'>
-            <span className='text-base font-semibold text-slate-800 dark:text-slate-500'>
-              {el?.name}
-            </span>
-            <span className='text-rose-800 font-medium'>
-              {formatNumber(el?.followers)}{" "}
-              <span className='text-gray-600'>Followers</span>
-            </span>
-          </div>
-        </Link>
-      ))}
+
+      {data?.length ? (
+        data.map((el) => (
+          <Link
+            to={`/writer/${el?._id}`}
+            key={el?._id}
+            className='flex gap-2 items-center'
+          >
+            <img
+              src={el?.image}
+              alt={el?.name}
+              className='w-12 h-12 rounded-full object-cover shrink-0'
+              onError={(event) => {
+                event.currentTarget.src = fallbackImage;
+              }}
+            />
+            <div className='flex flex-col gap-1'>
+              <span className='text-base font-semibold text-slate-800 dark:text-slate-500'>
+                {el?.name}
+              </span>
+              <span className='text-rose-800 font-medium'>
+                {formatNumber(el?.followers)}{" "}
+                <span className='text-gray-600'>Followers</span>
+              </span>
+            </div>
+          </Link>
+        ))
+      ) : (
+        <span className='text-sm text-slate-500'>No writers yet.</span>
+      )}
     </div>
   );
 };

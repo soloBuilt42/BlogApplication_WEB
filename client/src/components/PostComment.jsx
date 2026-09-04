@@ -1,46 +1,83 @@
-import { useMemo, useState } from "react";
-import useStore from "../store";
-import { COMMENTS } from "../utils/dummyData";
-import Button from "./Button";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Toaster, toast } from "sonner";
+import useStore from "../store";
+import Button from "./Button";
 import Profile from "../assets/profile.png";
-import { Toaster } from "sonner";
+import { formatDate } from "../utils";
+import {
+  commentOnPost,
+  deleteComment as deleteCommentApi,
+  getPostComments,
+} from "../utils/apiCalls";
 
 const PostComments = ({ postId }) => {
   const { user } = useStore();
-  const [comments, setComments] = useState(COMMENTS);
+  const [comments, setComments] = useState([]);
   const [desc, setDesc] = useState("");
-  const postComments = useMemo(
-    () => comments.filter((comment) => comment?.post === postId),
-    [comments, postId]
-  );
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmitComment = (event) => {
+  useEffect(() => {
+    let ignore = false;
+
+    const fetchComments = async () => {
+      setLoading(true);
+
+      try {
+        const result = await getPostComments(postId);
+
+        if (!ignore) setComments(result?.data ?? []);
+      } catch {
+        if (!ignore) setComments([]);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    };
+
+    if (postId) fetchComments();
+
+    return () => {
+      ignore = true;
+    };
+  }, [postId]);
+
+  const handleSubmitComment = async (event) => {
     event.preventDefault();
 
-    const trimmedDesc = desc.trim();
-    if (!trimmedDesc) return;
+    const trimmed = desc.trim();
+    if (!trimmed || submitting) return;
 
-    setComments((prev) => [
-      {
-        _id: crypto.randomUUID(),
-        user: user?.user || user,
-        post: postId,
-        desc: trimmedDesc,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
-    setDesc("");
+    setSubmitting(true);
+
+    try {
+      const result = await commentOnPost(postId, trimmed, user?.token);
+
+      setComments((prev) => [result.data, ...prev]);
+      setDesc("");
+      toast.success("Comment published");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleDeleteComment = (id) => {
-    setComments((prev) => prev.filter((comment) => comment?._id !== id));
+  const handleDeleteComment = async (id) => {
+    try {
+      await deleteCommentApi(id, postId, user?.token);
+
+      setComments((prev) => prev.filter((comment) => comment?._id !== id));
+      toast.success("Comment deleted");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
+
   return (
     <div className='w-full py-10'>
       <p className='text-lg text-slate-700 dark:text-slate-500 mb-6'>
-        Post Comments
+        Post Comments ({comments.length})
       </p>
 
       {user?.token ? (
@@ -49,16 +86,16 @@ const PostComments = ({ postId }) => {
             name='desc'
             onChange={(e) => setDesc(e.target.value)}
             value={desc}
-            required={true}
+            required
             placeholder='Add a comment...'
-            className='bg-transparent w-full p-2 border border-gray-300 focus:outline-none focus:border-blue-600  focus:ring-blue-600 rounded'
+            className='bg-transparent w-full p-2 border border-gray-300 focus:outline-none focus:border-blue-600 focus:ring-blue-600 rounded'
           ></textarea>
 
           <div className='w-full flex justify-end mt-2'>
             <Button
-              type={"submit"}
-              label='Submit'
-              styles='bg-blue-600 text-white py-2 px-5 rounded'
+              type='submit'
+              label={submitting ? "Submitting..." : "Submit"}
+              styles='bg-blue-600 text-white py-2 px-5 rounded disabled:opacity-60'
             />
           </div>
         </form>
@@ -72,17 +109,19 @@ const PostComments = ({ postId }) => {
       )}
 
       <div className='w-full h-full flex flex-col gap-10 2xl:gap-y-14 px-2'>
-        {postComments?.length === 0 ? (
+        {loading ? (
+          <span className='text-base text-slate-600'>Loading comments...</span>
+        ) : comments.length === 0 ? (
           <span className='text-base text-slate-600'>
-            No Comment, be the first to comment
+            No comment, be the first to comment
           </span>
         ) : (
-          postComments?.map((el) => (
+          comments.map((el) => (
             <div key={el?._id} className='w-full flex gap-4 items-start'>
               <img
                 src={el?.user?.image || Profile}
                 alt={el?.user?.name}
-                className='w-10 h-10 rounded-full'
+                className='w-10 h-10 rounded-full object-cover'
               />
               <div className='w-full -mt-2'>
                 <div className='w-full flex items-center gap-2'>
@@ -90,7 +129,7 @@ const PostComments = ({ postId }) => {
                     {el?.user?.name}
                   </p>
                   <span className='text-slate-700 text-xs italic'>
-                    {new Date(el?.createdAt).toDateString()}
+                    {formatDate(el?.createdAt)}
                   </span>
                 </div>
 
@@ -99,7 +138,7 @@ const PostComments = ({ postId }) => {
 
                   {user?.user?._id === el?.user?._id && (
                     <span
-                      className='text-base text-red-600 cursor-pointer'
+                      className='text-base text-red-600 cursor-pointer w-fit'
                       onClick={() => handleDeleteComment(el?._id)}
                     >
                       Delete

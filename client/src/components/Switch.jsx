@@ -5,17 +5,11 @@ const ThemeSwitch = () => {
   const { theme, setTheme } = useStore();
   const isDark = theme === "dark";
 
-  const toggleTheme = () => {
-    const newTheme = isDark ? "light" : "dark";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-  };
-
   return (
     <button
       type='button'
       aria-label='Toggle theme'
-      onClick={toggleTheme}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
       className={`relative flex h-7 w-14 items-center rounded-full p-1 transition-colors ${
         isDark ? "bg-slate-700" : "bg-slate-200"
       }`}
